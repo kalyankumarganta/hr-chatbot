@@ -1,0 +1,82 @@
+import express from "express";
+import cors from "cors";
+import fetch from "node-fetch";
+import pkg from "pg";
+import dotenv from "dotenv";
+
+dotenv.config();
+const { Pool } = pkg;
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Database (Supabase → Postgres with pgvector)
+const pool = new Pool({
+  connectionString: process.env.SUPABASE_DB_URL,
+});
+
+// Route: Chatbot API
+app.post("/chat", async (req, res) => {
+  const { question } = req.body;
+
+  try {
+    // 1. Query Supabase for relevant policies
+    const embedding = await getEmbedding(question);
+
+    const { rows } = await pool.query(
+      `SELECT content 
+       FROM policies 
+       ORDER BY embedding <-> $1 
+       LIMIT 3`,
+      [embedding]
+    );
+
+    const context = rows.map(r => r.content).join("\n");
+
+    // 2. Call Hugging Face LLM
+    const hfResponse = await fetch(
+      `https://api-inference.huggingface.co/models/${process.env.HF_MODEL}`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.HF_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          inputs: `${context}\n\nQuestion: ${question}\nAnswer:`
+        }),
+      }
+    );
+
+    const data = await hfResponse.json();
+
+    // 3. Return response
+    res.json({ answer: data[0]?.generated_text || "No response" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
+// Helper → get embedding (using Hugging Face API)
+async function getEmbedding(text) {
+  const resp = await fetch(
+    "https://api-inference.huggingface.co/embedding/<embedding-model>",
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.HF_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ inputs: text }),
+    }
+  );
+
+  const data = await resp.json();
+  return data[0]?.embedding || Array(1536).fill(0); // fallback vector
+}
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`✅ Backend running on ${PORT}`));
