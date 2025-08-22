@@ -14,11 +14,11 @@ async function sendMessage() {
         const res = await fetch("https://hr-chatbot-1-m1fk.onrender.com/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: input }), // ✅ fixed
+            body: JSON.stringify({ message: input }), // fixed
         });
 
         const data = await res.json();
-        console.log("Backend response:", data); // ✅ debug log
+        console.log("Backend response:", data); // debug log
 
         setMessages((prev) => [
             ...prev,
@@ -28,7 +28,7 @@ async function sendMessage() {
         console.error("Error talking to backend:", err);
         setMessages((prev) => [
             ...prev,
-            { role: "bot", content: "⚠️ Failed to reach backend" },
+            { role: "bot", content: " Failed to reach backend" },
         ]);
     }
 
