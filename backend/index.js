@@ -15,21 +15,21 @@ app.get("/", (req, res) => res.send("Backend is working!"));
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Message is required" });
 
-    if (!message) {
-      return res.status(400).json({ error: "Message is required" });
+    let botReply = "Sorry, I don’t know that yet.";
+
+    if (message.toLowerCase().includes("leave")) {
+      botReply = "Our leave policy allows 20 days of paid leave per year.";
+    } else if (message.toLowerCase().includes("work from home")) {
+      botReply = "Employees can take up to 2 WFH days per week with manager approval.";
     }
 
-    //  Later replace this with real AI / DB logic
-    const botReply = `You said: "${message}" (HR bot will answer here)`; 
-
-    //  always return { answer }
     res.json({ answer: botReply });
   } catch (err) {
     console.error("Chat error:", err);
     res.status(500).json({ error: "Something went wrong" });
   }
 });
-
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
