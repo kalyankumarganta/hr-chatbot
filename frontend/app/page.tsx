@@ -5,26 +5,35 @@ export default function Home() {
     const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
     const [input, setInput] = useState("");
 
-    async function sendMessage() {
-        if (!input.trim()) return;
+async function sendMessage() {
+    if (!input.trim()) return;
 
-        // Add user message
-        setMessages((prev) => [...prev, { role: "user", content: input }]);
+    setMessages((prev) => [...prev, { role: "user", content: input }]);
 
-        // Call backend (Render)
-        const res = await fetch("https://hr-chatbot-1-m1fk.onrender.com/chat",  {
+    try {
+        const res = await fetch("https://hr-chatbot-1-m1fk.onrender.com/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question: input }),
+            body: JSON.stringify({ message: input }), // ✅ fixed
         });
 
         const data = await res.json();
+        console.log("Backend response:", data); // ✅ debug log
 
-        // Add bot message
-        setMessages((prev) => [...prev, { role: "bot", content: data.answer }]);
-
-        setInput("");
+        setMessages((prev) => [
+            ...prev,
+            { role: "bot", content: data.answer || data.message || "No reply from bot" },
+        ]);
+    } catch (err) {
+        console.error("Error talking to backend:", err);
+        setMessages((prev) => [
+            ...prev,
+            { role: "bot", content: "⚠️ Failed to reach backend" },
+        ]);
     }
+
+    setInput("");
+}
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
