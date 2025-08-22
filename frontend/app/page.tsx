@@ -12,7 +12,7 @@ export default function Home() {
         setMessages((prev) => [...prev, { role: "user", content: input }]);
 
         // Call backend (Render)
-        const res = await fetch(`${process.env.https://hr-chatbot-1-m1fk.onrender.com}/chat`, {
+        const res = await fetch("https://hr-chatbot-1-m1fk.onrender.com/chat",  {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ question: input }),
