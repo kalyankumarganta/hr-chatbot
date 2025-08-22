@@ -1,68 +1,35 @@
-"use client";
-import { useState } from "react";
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
 
-export default function Home() {
-    const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
-    const [input, setInput] = useState("");
+dotenv.config();
+const app = express();
 
-    async function sendMessage() {
-        if (!input.trim()) return;
+app.use(cors());
+app.use(express.json());
 
-        // Add user message immediately
-        setMessages((prev) => [...prev, { role: "user", content: input }]);
+// Health check
+app.get("/", (req, res) => res.send("Backend is working!"));
 
-        try {
-            // Call backend (Render)
-            const res = await fetch("https://hr-chatbot-1-m1fk.onrender.com/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question: input }),
-            });
+//  Chat endpoint
+app.post("/chat", async (req, res) => {
+  try {
+    const { message } = req.body;
 
-            if (!res.ok) {
-                throw new Error(`Backend error: ${res.status}`);
-            }
-
-            const data = await res.json();
-
-            // Add bot message
-            setMessages((prev) => [...prev, { role: "bot", content: data.answer || "No answer returned" }]);
-        } catch (err) {
-            // Catch errors (e.g., backend down, network issues)
-            setMessages((prev) => [...prev, { role: "bot", content: " Backend not reachable. Please try again later." }]);
-        }
-
-        setInput("");
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
     }
 
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
-            <div className="w-full max-w-2xl bg-white rounded-lg shadow-md p-4">
-                <h1 className="text-xl font-bold mb-4">HR Policy Chatbot</h1>
+    //  Later replace this with real AI / DB logic
+    const botReply = `You said: "${message}" (HR bot will answer here)`; 
 
-                <div className="h-96 overflow-y-auto border rounded p-2 mb-4 bg-gray-50">
-                    {messages.map((m, i) => (
-                        <p key={i} className={m.role === "user" ? "text-blue-600" : "text-green-600"}>
-                            <b>{m.role}:</b> {m.content}
-                        </p>
-                    ))}
-                </div>
+    //  always return { answer }
+    res.json({ answer: botReply });
+  } catch (err) {
+    console.error("Chat error:", err);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+});
 
-                <div className="flex">
-                    <input
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        className="flex-1 border rounded-l px-2"
-                        placeholder="Ask about HR policies..."
-                    />
-                    <button
-                        onClick={sendMessage}
-                        className="bg-blue-500 text-white px-4 rounded-r"
-                    >
-                        Send
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
