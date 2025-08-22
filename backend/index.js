@@ -13,42 +13,39 @@ app.use(express.json());
 const hf = new HfInference(process.env.HF_API_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-app.get("/", (req, res) => res.send("Backend is working!"));
-
-// Chat endpoint
+// Chat endpoint with embeddings
 app.post("/chat", async (req, res) => {
   try {
     const { message } = req.body;
+    if (!message) return res.status(400).json({ error: "Message required" });
 
-    if (!message) return res.status(400).json({ error: "Message is required" });
-
-    //  Get embeddings for the question
-    const embRes = await hf.featureExtraction({
-      model: "sentence-transformers/all-MiniLM-L6-v2", // Embedding model
+    // 1. Embed user question
+    const embeddingResponse = await hf.featureExtraction({
+      model: "sentence-transformers/all-MiniLM-L6-v2",
       inputs: message,
     });
 
-    const embedding = Array.from(embRes[0]); // HF returns nested array
+    const embedding = embeddingResponse; // array of floats
 
-    // Query Supabase for closest HR policy
-    const { data: matches, error } = await supabase.rpc("match_policies", {
+    // 2. Search similar policies in Supabase (pgvector)
+    const { data, error } = await supabase.rpc("match_policies", {
       query_embedding: embedding,
       match_threshold: 0.7,
-      match_count: 2
+      match_count: 1,
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error("Supabase error:", error);
+      return res.status(500).json({ error: "Database error" });
+    }
 
-    const context = matches?.map(m => m.content).join("\n") || "No relevant HR policy found.";
+    if (data.length === 0) {
+      return res.json({ answer: "Sorry, I don’t know that yet." });
+    }
 
-    //  Generate answer with Mistral-7B-Instruct
-    const botRes = await hf.textGeneration({
-      model: "mistralai/Mistral-7B-Instruct-v0.2",
-      inputs: `You are an HR assistant. Use the context below to answer the employee’s question.\n\nContext:\n${context}\n\nUser: ${message}\nHR Bot:`,
-      parameters: { max_new_tokens: 300, temperature: 0.5 }
-    });
-
-    res.json({ answer: botRes.generated_text });
+    // 3. Return the best match
+    const bestPolicy = data[0];
+    res.json({ answer: bestPolicy.content });
 
   } catch (err) {
     console.error("Chat error:", err);
