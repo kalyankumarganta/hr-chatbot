@@ -21,7 +21,7 @@ app.post("/chat", async (req, res) => {
 
     // 1. Embed user question
     const embeddingResponse = await hf.featureExtraction({
-      model: "mistralai/Mistral-7B-Instruct-v0.2",
+      model: "sentence-transformers/all-MiniLM-L6-v2",
       inputs: message,
     });
 
