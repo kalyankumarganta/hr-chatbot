@@ -11,7 +11,7 @@ app.use(cors());
 app.use(express.json());
 
 const hf = new HfInference(process.env.HF_API_KEY);
-const supabase = createClient(process.env.SUPABASE_DB_URL, process.env.SUPABASE_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // Chat endpoint with embeddings
 app.post("/chat", async (req, res) => {
