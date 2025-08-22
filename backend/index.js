@@ -1,29 +1,68 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
+"use client";
+import { useState } from "react";
 
-dotenv.config();
-const app = express();
-app.use(cors());
-app.use(express.json());
+export default function Home() {
+    const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+    const [input, setInput] = useState("");
 
-// Root test route
-app.get("/", (req, res) => res.send("Backend is working!"));
+    async function sendMessage() {
+        if (!input.trim()) return;
 
-// Chat route
-app.post("/chat", (req, res) => {
-  const { question } = req.body;
+        // Add user message immediately
+        setMessages((prev) => [...prev, { role: "user", content: input }]);
 
-  if (!question) {
-    return res.status(400).json({ error: "Question is required" });
-  }
+        try {
+            // Call backend (Render)
+            const res = await fetch("https://hr-chatbot-1-m1fk.onrender.com/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question: input }),
+            });
 
-  // For now, just echo back (later you’ll add Hugging Face / Supabase logic)
-  const botReply = `You asked: "${question}". (This is a placeholder response from HR bot ✅)`;
+            if (!res.ok) {
+                throw new Error(`Backend error: ${res.status}`);
+            }
 
-  res.json({ answer: botReply });
-});
+            const data = await res.json();
 
-// Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Backend running on ${PORT}`));
+            // Add bot message
+            setMessages((prev) => [...prev, { role: "bot", content: data.answer || "No answer returned" }]);
+        } catch (err) {
+            // Catch errors (e.g., backend down, network issues)
+            setMessages((prev) => [...prev, { role: "bot", content: " Backend not reachable. Please try again later." }]);
+        }
+
+        setInput("");
+    }
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-6">
+            <div className="w-full max-w-2xl bg-white rounded-lg shadow-md p-4">
+                <h1 className="text-xl font-bold mb-4">HR Policy Chatbot</h1>
+
+                <div className="h-96 overflow-y-auto border rounded p-2 mb-4 bg-gray-50">
+                    {messages.map((m, i) => (
+                        <p key={i} className={m.role === "user" ? "text-blue-600" : "text-green-600"}>
+                            <b>{m.role}:</b> {m.content}
+                        </p>
+                    ))}
+                </div>
+
+                <div className="flex">
+                    <input
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        className="flex-1 border rounded-l px-2"
+                        placeholder="Ask about HR policies..."
+                    />
+                    <button
+                        onClick={sendMessage}
+                        className="bg-blue-500 text-white px-4 rounded-r"
+                    >
+                        Send
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
